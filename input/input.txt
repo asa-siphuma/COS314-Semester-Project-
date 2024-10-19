@@ -1,0 +1,13 @@
+main
+num V_a, num V_b,
+text V_message
+begin
+    V_a = 64;
+end
+num F_add(V_x, V_y, V_z) {
+    num V_1, num V_2, num V_3,
+    begin
+        V_2 = not(V_x);
+    end
+}
+end 
