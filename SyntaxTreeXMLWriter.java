@@ -81,7 +81,10 @@ public class SyntaxTreeXMLWriter {
             Token varName = currentToken();
             if (varName.getType() == Token.TokenType.VARIABLE_NAME) {
                 SynNode varNameNode = new SynNode("VNAME");
-                varNameNode.addChild(new SynNode(varName.getValue()));
+                SynNode varNode = new SynNode(varName.getValue());
+                varNode.setType(varType.getValue());
+                varNode.setIsVariableDeclaration(true);
+                varNameNode.addChild(varNode);
                 varDeclNode.addChild(varNameNode);
                 nextToken();
             } else {
@@ -106,7 +109,6 @@ public class SyntaxTreeXMLWriter {
 
     // Parse algorithm block (ALGO ::= begin INSTRUC end)
     private SynNode parseAlgo() {
-
         SynNode algoNode = new SynNode("ALGO");
         algoNode.addChild(match(Token.TokenType.KEYWORD, "begin"));
         algoNode.addChild(parseInstruc());
@@ -171,7 +173,9 @@ public class SyntaxTreeXMLWriter {
 
         Token varName = currentToken();
         SynNode nameNode = (new SynNode("VNAME"));
-        nameNode.addChild(match(Token.TokenType.VARIABLE_NAME, varName.getValue()));
+        SynNode varNode = match(Token.TokenType.VARIABLE_NAME, varName.getValue());
+        varNode.setIsVariableUsage(true);
+        nameNode.addChild(varNode);
         assignNode.addChild(nameNode);
         System.out.println("Variable name: " + varName.getValue());
 
@@ -207,9 +211,20 @@ public class SyntaxTreeXMLWriter {
     // Parse atomic values (ATOMIC ::= VNAME | CONST)
     private SynNode parseAtomic() {
         Token atomic = currentToken();
+        System.out.println("Parsing atomic: " + atomic.getValue());
         nextToken();
         SynNode atomicNode = new SynNode("ATOMIC");
-        atomicNode.addChild(new SynNode(atomic.getValue()));
+        if (atomic.getValue().startsWith("V_")) {
+            SynNode vnameNode = new SynNode("VNAME");
+            SynNode varNode = new SynNode(atomic.getValue());
+            varNode.setIsVariableUsage(true);
+            vnameNode.addChild(varNode);
+            atomicNode.addChild(vnameNode);
+        } else {
+            SynNode constNode = new SynNode("CONST");
+            constNode.addChild(new SynNode(atomic.getValue()));
+            atomicNode.addChild(constNode);
+        }
         return atomicNode;
     }
 
@@ -432,8 +447,12 @@ public class SyntaxTreeXMLWriter {
         SynNode functionCallNode = new SynNode("CALL");
 
         if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
-            functionCallNode.addChild(new SynNode(currentToken().getValue()));
+            SynNode fNameNode = new SynNode("FNAME");
+            SynNode varNode = new SynNode(currentToken().getValue());
+            fNameNode.addChild(varNode);
+            varNode.setIsFunctionCall(true);
             nextToken(); // Consume function name
+            functionCallNode.addChild(fNameNode);
             functionCallNode.addChild(match(Token.TokenType.KEYWORD, "("));
             functionCallNode.addChild(parseAtomic()); // First argument
             functionCallNode.addChild(match(Token.TokenType.KEYWORD, ","));
@@ -477,13 +496,17 @@ public class SyntaxTreeXMLWriter {
         SynNode headerNode = new SynNode("HEADER");
         if (currentToken().getValue().equals("num") || currentToken().getValue().equals("void")) {
             SynNode ftypNode = new SynNode("FTYP");
-            ftypNode.addChild(new SynNode(currentToken().getValue()));
+            SynNode ftypeNameNode = new SynNode(currentToken().getValue());
+            ftypNode.addChild(ftypeNameNode);
             headerNode.addChild(ftypNode);
             nextToken(); // Consume return type ('num' or 'void')
             if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
                 System.out.println("Parsing function name: " + currentToken().getValue());
                 SynNode fnameNode = new SynNode("FNAME");
-                fnameNode.addChild(new SynNode(currentToken().getValue()));
+                SynNode varNameNode = new SynNode(currentToken().getValue());
+                varNameNode.setIsFunctionDefinition(true);
+                varNameNode.setType(ftypeNameNode.getValue());
+                fnameNode.addChild(varNameNode);
                 headerNode.addChild(fnameNode);
                 nextToken(); // Consume function name
                 headerNode.addChild(match(Token.TokenType.KEYWORD, "("));
@@ -492,7 +515,9 @@ public class SyntaxTreeXMLWriter {
                 if (currentToken().getValue().startsWith("V_")) {
                     SynNode vnameNode = new SynNode("VNAME");
                     headerNode.addChild(vnameNode);
-                    vnameNode.addChild(new SynNode(currentToken().getValue()));
+                    SynNode varNode = new SynNode(currentToken().getValue());
+                    varNode.setIsVariableUsage(true);
+                    vnameNode.addChild(varNode);
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -504,7 +529,9 @@ public class SyntaxTreeXMLWriter {
                 if (currentToken().getValue().startsWith("V_")) {
                     SynNode vnameNode = new SynNode("VNAME");
                     headerNode.addChild(vnameNode);
-                    vnameNode.addChild(new SynNode(currentToken().getValue()));
+                    SynNode varNode = new SynNode(currentToken().getValue());
+                    varNode.setIsVariableUsage(true);
+                    vnameNode.addChild(varNode);
                     System.out.println("Parsing variable name: " + currentToken().getValue());
                     nextToken(); // Consume variable name
                 } else {
@@ -517,7 +544,9 @@ public class SyntaxTreeXMLWriter {
                 if (currentToken().getValue().startsWith("V_")) {
                     SynNode vnameNode = new SynNode("VNAME");
                     headerNode.addChild(vnameNode);
-                    vnameNode.addChild(new SynNode(currentToken().getValue()));
+                    SynNode varNode = new SynNode(currentToken().getValue());
+                    varNode.setIsVariableUsage(true);
+                    vnameNode.addChild(varNode);
         
                     System.out.println("Parsing variable name: " + currentToken().getValue());
                     nextToken(); // Consume variable name

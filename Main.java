@@ -48,8 +48,8 @@ public class Main {
             SyntaxTreeFormatter formatter = new SyntaxTreeFormatter();
             formatter.formatAndSaveSyntaxTree(syntaxTree, "output/syntaxTree.xml");
 
-            // SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            // analyzer.analyze(syntaxTree);
+            SemanticAnalyzer analyzer = new SemanticAnalyzer();
+            analyzer.analyze(syntaxTree);
 
             // Output the symbol table with unique names
             // analyzer.getSymbolTable().printTable();

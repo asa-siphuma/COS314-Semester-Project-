@@ -10,6 +10,9 @@ class SynNode {
     String value;                    // Value for terminal nodes (e.g., "num", "V_a")
     Boolean isVariableDeclaration = false;
     Boolean isFunctionDefinition = false;
+    Boolean isFunctionCall = false;
+    Boolean isVariableUsage = false;
+    String type = "";
 
     // Constructor for non-terminal nodes (inner nodes)
     public SynNode() {
@@ -53,18 +56,42 @@ class SynNode {
         return isFunctionDefinition;
     }
 
+    public Boolean setIsVariableUsage(Boolean isVariableUsage) {
+        this.isVariableUsage = isVariableUsage;
+        return isVariableUsage;
+    }
+
+    public Boolean setIsFunctionCall(Boolean isFunctionCall) {
+        this.isFunctionCall = isFunctionCall;
+        return isFunctionCall;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getType() {
+        return type;
+    }
+
     // get parent by id
     public SynNode getParent() {
         return parent;
     }
 
     public boolean isVariableDeclaration() {
+        return isVariableDeclaration;
     }
 
     public boolean isFunctionDefinition() {
+        return isFunctionDefinition;
     }   
 
     public boolean isVariableUsage() {
+        return isVariableUsage;
     }
 
+    public boolean isFunctionCall() {
+        return isFunctionCall;
+    }
 }

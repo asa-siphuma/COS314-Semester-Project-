@@ -7,6 +7,11 @@ public class SemanticAnalyzer {
 
     public void analyze(SynNode root) {
         crawlSyntaxTree(root, null);
+        System.out.println("Symbol Table after analysis:");
+        System.out.println(symbolTable.viewSymbolTable());
+
+        System.out.println("Error reports:");
+        System.out.println(errorReports);
     }
 
     private void crawlSyntaxTree(SynNode node, String currentScope) {
@@ -16,9 +21,10 @@ public class SemanticAnalyzer {
             if (symbolTable.isDeclared(functionName)) {
                 errorReports.add("Function '" + functionName + "' is already declared.");
             } else {
-                symbolTable.declareVariable(functionName, "function");
+                System.out.println("Function nameee: "+ functionName + " with type: " + node.getType());
+                symbolTable.declareVariable(functionName, node.getType());
                 symbolTable.enterScope(); // Enter new scope for function
-            }
+            } 
         } else if (node.isVariableDeclaration()) {
             // Handle variable declaration
             String variableName = node.getValue();
@@ -27,13 +33,20 @@ public class SemanticAnalyzer {
             } else if (symbolTable.isDeclared(variableName)) {
                 errorReports.add("Variable '" + variableName + "' is already declared in the current scope.");
             } else {
-                symbolTable.declareVariable(variableName, "variable");
+                symbolTable.declareVariable(variableName, node.getType());
             }
         } else if (node.isVariableUsage()) {
             // Handle variable usage
             String variableName = node.getValue();
             if (!symbolTable.isDeclared(variableName)) {
                 errorReports.add("Variable '" + variableName + "' is used without declaration.");
+            }
+        } else if (node.isFunctionCall()) {
+            // Handle function call
+            System.out.println("Function call: " + node.getValue());
+            String functionName = node.getValue();
+            if (!symbolTable.isDeclared(functionName)) {
+                errorReports.add("Function '" + functionName + "' is called without declaration.");
             }
         }
 

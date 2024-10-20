@@ -16,7 +16,7 @@
     <TOK>
         <ID>3</ID>
         <CLASS>V</CLASS>
-        <WORD>V_a</WORD>
+        <WORD>V_x</WORD>
         <LINE>2</LINE>
         <COLUMN>5</COLUMN>
     </TOK>
@@ -260,8 +260,8 @@
     </TOK>
     <TOK>
         <ID>38</ID>
-        <CLASS>reserved_keyword</CLASS>
-        <WORD>not</WORD>
+        <CLASS>F</CLASS>
+        <WORD>F_sub</WORD>
         <LINE>10</LINE>
         <COLUMN>15</COLUMN>
     </TOK>
@@ -270,45 +270,73 @@
         <CLASS>reserved_keyword</CLASS>
         <WORD>(</WORD>
         <LINE>10</LINE>
-        <COLUMN>19</COLUMN>
+        <COLUMN>21</COLUMN>
     </TOK>
     <TOK>
         <ID>40</ID>
         <CLASS>V</CLASS>
         <WORD>V_x</WORD>
         <LINE>10</LINE>
-        <COLUMN>19</COLUMN>
+        <COLUMN>21</COLUMN>
     </TOK>
     <TOK>
         <ID>41</ID>
         <CLASS>reserved_keyword</CLASS>
-        <WORD>)</WORD>
+        <WORD>,</WORD>
         <LINE>10</LINE>
-        <COLUMN>23</COLUMN>
+        <COLUMN>25</COLUMN>
     </TOK>
     <TOK>
         <ID>42</ID>
-        <CLASS>reserved_keyword</CLASS>
-        <WORD>;</WORD>
+        <CLASS>V</CLASS>
+        <WORD>V_y</WORD>
         <LINE>10</LINE>
-        <COLUMN>24</COLUMN>
+        <COLUMN>25</COLUMN>
     </TOK>
     <TOK>
         <ID>43</ID>
+        <CLASS>reserved_keyword</CLASS>
+        <WORD>,</WORD>
+        <LINE>10</LINE>
+        <COLUMN>29</COLUMN>
+    </TOK>
+    <TOK>
+        <ID>44</ID>
+        <CLASS>V</CLASS>
+        <WORD>V_z</WORD>
+        <LINE>10</LINE>
+        <COLUMN>29</COLUMN>
+    </TOK>
+    <TOK>
+        <ID>45</ID>
+        <CLASS>reserved_keyword</CLASS>
+        <WORD>)</WORD>
+        <LINE>10</LINE>
+        <COLUMN>33</COLUMN>
+    </TOK>
+    <TOK>
+        <ID>46</ID>
+        <CLASS>reserved_keyword</CLASS>
+        <WORD>;</WORD>
+        <LINE>10</LINE>
+        <COLUMN>34</COLUMN>
+    </TOK>
+    <TOK>
+        <ID>47</ID>
         <CLASS>reserved_keyword</CLASS>
         <WORD>end</WORD>
         <LINE>11</LINE>
         <COLUMN>5</COLUMN>
     </TOK>
     <TOK>
-        <ID>44</ID>
+        <ID>48</ID>
         <CLASS>reserved_keyword</CLASS>
         <WORD>}</WORD>
         <LINE>12</LINE>
         <COLUMN>2</COLUMN>
     </TOK>
     <TOK>
-        <ID>45</ID>
+        <ID>49</ID>
         <CLASS>reserved_keyword</CLASS>
         <WORD>end</WORD>
         <LINE>13</LINE>

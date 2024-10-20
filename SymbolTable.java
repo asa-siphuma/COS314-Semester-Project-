@@ -59,9 +59,11 @@ public class SymbolTable {
     public void declareVariable(String name, String type) {
         String uniqueName = generateUniqueName(name);
         addSymbol(name, uniqueName, type, null);
+        System.out.println("Declared variable: " + name + " with type: " + type);
     }
 
     public void declareFunction(String name, String type) {
+        System.out.println("Declaring function: " + name + " with type: " + type);
         if (functionSymbols.containsKey(name)) {
             throw new SemanticError("Function '" + name + "' is already declared.");
         }
@@ -90,6 +92,20 @@ public class SymbolTable {
             }
         }
         return globalSymbols.get(name);
+    }
+
+    // Return a string representation of the symbol table
+    public String viewSymbolTable() {
+        StringBuilder sb = new StringBuilder();
+        int level = 0;
+
+        for (Map<String, String> scope : scopes) {
+            sb.append("Scope Level ").append(level++).append(":\n");
+            for (Map.Entry<String, String> entry : scope.entrySet()) {
+                sb.append("    ").append(entry.getKey()).append(" : ").append(entry.getValue()).append("\n");
+            }
+        }
+        return sb.toString();
     }
 }
 
