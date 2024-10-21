@@ -75,6 +75,9 @@ public class Parser {
         if (varType.getValue().equals("num") || varType.getValue().equals("text")) {
             nextToken(); // Consume 'num' or 'text'
             if (currentToken().getType() == Token.TokenType.VARIABLE_NAME) {
+                if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                    syntaxError("Variable name cannot start with a digit");
+                }
                 nextToken(); // Consume variable name
             } else {
                 syntaxError("Expected variable name after type");
@@ -157,6 +160,9 @@ public class Parser {
     // Parse an assignment (ASSIGN ::= VNAME = TERM)
     private void parseAssign() {
         if (currentToken().getType() == Token.TokenType.VARIABLE_NAME) {
+            if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                syntaxError("Variable name cannot start with a digit");
+            }
             nextToken(); // Consume the variable name
             match(Token.TokenType.KEYWORD, "="); // Consume '='
             parseTerm(); // Parse the term being assigned
@@ -321,8 +327,7 @@ public class Parser {
     // Parse condition (COND ::= SIMPLE | COMPOSIT)
     private void parseCond() {
         if (isBinOp(currentToken())) {
-            if (isBinOp(lookahead(2))) { // Check if it's a composite condition: e.g or(eq(3,2), lt(3,2)) - second char
-                                         // aafter the first binop is a binop, hence its composit
+            if (isBinOp(lookahead(2))) { // Check if it's a composite condition: e.g or(eq(3,2), lt(3,2)) - second char after the first binop is a binop, hence its composit
                 parseComposit(); // Handling composite conditions
             } else {
                 parseSimple();
@@ -382,6 +387,9 @@ public class Parser {
     private void parseFunctionCall() {
         System.out.println("Parsing function call: " + currentToken().getValue());
         if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
+            if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                syntaxError("Function name cannot start with a digit");
+            }
             nextToken(); // Consume function name
             match(Token.TokenType.KEYWORD, "(");
             parseAtomic(); // First argument
@@ -419,12 +427,18 @@ public class Parser {
             nextToken(); // Consume return type ('num' or 'void')
             if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
                 System.out.println("Parsing function name: " + currentToken().getValue());
+                if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                syntaxError("Function name cannot start with a digit");
+            }
                 nextToken(); // Consume function name
                 match(Token.TokenType.KEYWORD, "(");
 
                 // Parse 1st argument
                 if (currentToken().getValue().startsWith("V_")) {
-                    System.out.println("Parsing variable name: " + currentToken().getValue());
+                    System.out.println("Parsing variable name: " + currentToken().getValue().charAt(2));
+                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                        syntaxError("Variable name cannot start with a digit");
+                    }
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -435,6 +449,9 @@ public class Parser {
                 // Parse 2nd argument
                 if (currentToken().getValue().startsWith("V_")) {
                     System.out.println("Parsing variable name: " + currentToken().getValue());
+                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                        syntaxError("Variable name cannot start with a digit");
+                    }
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -445,6 +462,9 @@ public class Parser {
                 // Parse 3rd argument
                 if (currentToken().getValue().startsWith("V_")) {
                     System.out.println("Parsing variable name: " + currentToken().getValue());
+                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                        syntaxError("Variable name cannot start with a digit");
+                    }
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
