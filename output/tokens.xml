@@ -37,7 +37,7 @@
     <TOK>
         <ID>6</ID>
         <CLASS>V</CLASS>
-        <WORD>V_b</WORD>
+        <WORD>V_a</WORD>
         <LINE>2</LINE>
         <COLUMN>14</COLUMN>
     </TOK>
@@ -184,7 +184,7 @@
     <TOK>
         <ID>27</ID>
         <CLASS>V</CLASS>
-        <WORD>V_1</WORD>
+        <WORD>V_p</WORD>
         <LINE>8</LINE>
         <COLUMN>9</COLUMN>
     </TOK>
@@ -205,7 +205,7 @@
     <TOK>
         <ID>30</ID>
         <CLASS>V</CLASS>
-        <WORD>V_2</WORD>
+        <WORD>V_m</WORD>
         <LINE>8</LINE>
         <COLUMN>18</COLUMN>
     </TOK>
@@ -226,7 +226,7 @@
     <TOK>
         <ID>33</ID>
         <CLASS>V</CLASS>
-        <WORD>V_3</WORD>
+        <WORD>V_nop</WORD>
         <LINE>8</LINE>
         <COLUMN>27</COLUMN>
     </TOK>
@@ -235,7 +235,7 @@
         <CLASS>reserved_keyword</CLASS>
         <WORD>,</WORD>
         <LINE>8</LINE>
-        <COLUMN>31</COLUMN>
+        <COLUMN>33</COLUMN>
     </TOK>
     <TOK>
         <ID>35</ID>
@@ -247,7 +247,7 @@
     <TOK>
         <ID>36</ID>
         <CLASS>V</CLASS>
-        <WORD>V_2</WORD>
+        <WORD>V_a</WORD>
         <LINE>10</LINE>
         <COLUMN>9</COLUMN>
     </TOK>
@@ -303,7 +303,7 @@
     <TOK>
         <ID>44</ID>
         <CLASS>V</CLASS>
-        <WORD>V_z</WORD>
+        <WORD>V_t</WORD>
         <LINE>10</LINE>
         <COLUMN>29</COLUMN>
     </TOK>

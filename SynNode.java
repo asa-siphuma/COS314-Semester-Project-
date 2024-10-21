@@ -41,6 +41,11 @@ class SynNode {
         }
     }
 
+    // get children
+    public List<SynNode> getChildren() {
+        return children;
+    }
+
     // retrun valu
     public String getValue() {
         return value;

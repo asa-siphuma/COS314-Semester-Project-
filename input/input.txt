@@ -1,13 +1,13 @@
 main
-num V_x, num V_b,
+num V_x, num V_a,
 text V_message
 begin
     V_a = 64;
 end
 num F_add(V_x, V_y, V_z) {
-    num V_1, num V_2, num V_3,
+    num V_p, num V_m, num V_nop,
     begin
-        V_2 = F_sub(V_x,V_y,V_z);
+        V_a = F_sub(V_x,V_y,V_t);
     end
 }
 end 

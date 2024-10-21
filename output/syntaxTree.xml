@@ -480,7 +480,7 @@
         <LEAF>
             <PARENT>13</PARENT>
             <UNID>14</UNID>
-            <TERMINAL>V_b</TERMINAL>
+            <TERMINAL>V_a</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>10</PARENT>
@@ -595,7 +595,7 @@
         <LEAF>
             <PARENT>62</PARENT>
             <UNID>63</UNID>
-            <TERMINAL>V_1</TERMINAL>
+            <TERMINAL>V_p</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>58</PARENT>
@@ -610,7 +610,7 @@
         <LEAF>
             <PARENT>68</PARENT>
             <UNID>69</UNID>
-            <TERMINAL>V_2</TERMINAL>
+            <TERMINAL>V_m</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>58</PARENT>
@@ -625,7 +625,7 @@
         <LEAF>
             <PARENT>74</PARENT>
             <UNID>75</UNID>
-            <TERMINAL>V_3</TERMINAL>
+            <TERMINAL>V_nop</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>58</PARENT>
@@ -640,7 +640,7 @@
         <LEAF>
             <PARENT>82</PARENT>
             <UNID>83</UNID>
-            <TERMINAL>V_2</TERMINAL>
+            <TERMINAL>V_a</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>81</PARENT>
@@ -680,7 +680,7 @@
         <LEAF>
             <PARENT>99</PARENT>
             <UNID>100</UNID>
-            <TERMINAL>V_z</TERMINAL>
+            <TERMINAL>V_t</TERMINAL>
         </LEAF>
         <LEAF>
             <PARENT>86</PARENT>

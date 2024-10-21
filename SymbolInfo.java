@@ -1,23 +1,18 @@
 public class SymbolInfo {
-    String originalName;
-    String uniqueName;
-    String type;
-    String scope;
+    private final String name;
+    private final String type;
+    private final String scope;
+    private final String kind;  // 'variable' or 'function'
 
-    public SymbolInfo(String originalName, String uniqueName, String type, String scope) {
-        this.uniqueName = uniqueName;
+    public SymbolInfo(String name, String type, String scope, String kind) {
+        this.name = name;
         this.type = type;
         this.scope = scope;
-        this.originalName = originalName;
+        this.kind = kind;
     }
 
-    // Getter methods (optional) for accessing fields
-    public String getUniqueName() {
-        return uniqueName;
-    }
-
-    public String getOriginalName() {
-        return originalName;
+    public String getName() {
+        return name;
     }
 
     public String getType() {
@@ -28,8 +23,12 @@ public class SymbolInfo {
         return scope;
     }
 
+    public String getKind() {
+        return kind;
+    }
+
     @Override
     public String toString() {
-        return "SymbolInfo [uniqueName=" + uniqueName + ", type=" + type + ", scope=" + scope + "]";
+        return "Name: " + name + ", Type: " + type + ", Scope: " + scope + ", Kind: " + kind;
     }
 }
