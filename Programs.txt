@@ -1,0 +1,45 @@
+Program 1
+//Get a name from user and print it Print hello {name}
+
+main 
+text V_name,
+
+begin 
+V_name<input;
+print "Hello ";
+print V_name;
+end
+
+Program 2
+//Get 3 variables from user,call the sum function and return the sum of the 3 variables
+
+main
+num V_result,
+num V_num1,
+num V_num2,
+num V_num3,
+
+begin
+V_num1<input;
+V_num2<input;
+V_num3<input;
+V_result=F_sum(V_num1,V_num2,V_num3);
+print 
+end
+
+num F_sum(V_num1,V_num2,V_num3){
+    num V_num4,
+    num V_num5,
+    num V_num6,
+
+    begin
+    V_num4=V_num1;
+    V_num5=V_num2;
+    V_num6=V_num3;
+    V_sum=add(V_num4,add(V_num5,V_num6));
+    return V_sum;
+    end
+}
+
+//Program 3
+
