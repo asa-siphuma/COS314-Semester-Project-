@@ -6,6 +6,7 @@ public class Parser {
     private List<Token> tokens;
     private int currentTokenIndex = 0;
     private int unid = 0;
+    private SymbolTable symbolTable = new SymbolTable();
 
     public Parser(List<Token> tokens) throws IOException {
         this.tokens = tokens;
@@ -194,6 +195,11 @@ public class Parser {
         Token atomic = currentToken();
         if (atomic.getType() == Token.TokenType.VARIABLE_NAME || atomic.getType() == Token.TokenType.NUMBER
                 || atomic.getType() == Token.TokenType.TEXT_CONSTANT) {
+            
+            if (atomic.getValue().startsWith("V_") && Character.isDigit(atomic.getValue().charAt(2))) {
+                syntaxError("Variable name cannot start with a digit");
+            }
+
             nextToken(); // Consume atomic value
         } else {
             syntaxError("Expected an atomic value (variable, number, or text constant)");
@@ -492,6 +498,7 @@ public class Parser {
             parseSubFuncs();
         }
         match(Token.TokenType.KEYWORD, "end");
+
         System.out.println("Done parsing function body: " + currentToken().getValue());
     }
 
