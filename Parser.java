@@ -128,7 +128,7 @@ public class Parser {
         System.out.println("Parsing command: " + currentToken().getValue());
         Token command = currentToken();
 
-        // if command include "F_"
+        // if command includes "F_"
         if (command.getValue().startsWith("F_")) {
             parseFunctionCall();
             return;
@@ -137,25 +137,49 @@ public class Parser {
         switch (command.getValue()) {
             case "skip":
             case "halt":
-                nextToken(); // Simple commands: 'skip' or 'halt'
+                nextToken();
                 break;
             case "print":
-                nextToken(); // Consume 'print'
-                parseAtomic(); // Expect an atomic value after 'print'
+                nextToken();
+                parseAtomic();
                 break;
             case "return":
-                nextToken(); // Consume 'return'
-                parseAtomic(); // Expect an atomic value after 'return'
+                parseReturnCommand();
                 break;
             case "if":
-                parseBranch(); // Conditional (if-else)
+                parseBranch();
                 break;
             default:
-                // System.out.println("Assignment: " + command.getValue());
-                parseAssign(); // Handle variable assignment
+                parseAssign();
                 break;
         }
     }
+
+    private void parseReturnCommand() {
+        match(Token.TokenType.KEYWORD, "return");
+        
+        // Check if we're actually in a function context
+        if (scopeLevel == 0) {
+            syntaxError("Return statement only allowed within functions");
+        }
+
+        // Verify the next token can be parsed as ATOMIC
+        Token next = currentToken();
+        if (!isValidAtomic(next)) {
+            syntaxError("Expected atomic value (variable or constant) after return, found: " + next.getValue());
+        }
+
+        parseAtomic();
+    }
+
+    private boolean isValidAtomic(Token token) {
+        return token.getType() == Token.TokenType.VARIABLE_NAME || 
+               token.getType() == Token.TokenType.NUMBER ||
+               token.getType() == Token.TokenType.TEXT_CONSTANT;
+    }
+
+    // Add this field to track function context
+    private int scopeLevel = 0;
 
     // Parse an assignment (ASSIGN ::= VNAME = TERM)
     private void parseAssign() {
@@ -164,8 +188,15 @@ public class Parser {
                 syntaxError("Variable name cannot start with a digit");
             }
             nextToken(); // Consume the variable name
-            match(Token.TokenType.KEYWORD, "="); // Consume '='
-            parseTerm(); // Parse the term being assigned
+            
+            // Check for input command
+            if (currentToken().getValue().equals("<")) {
+                nextToken(); // Consume '<'
+                match(Token.TokenType.KEYWORD, "input"); // Must match 'input'
+            } else {
+                match(Token.TokenType.KEYWORD, "="); // Standard assignment
+                parseTerm(); // Parse the term being assigned
+            }
         } else {
             syntaxError("Expected variable name for assignment");
         }
@@ -173,18 +204,24 @@ public class Parser {
 
     // Parse a term (TERM ::= ATOMIC | CALL | OP)
     private void parseTerm() {
-        System.out.println("Parsing term: " + currentToken().getValue());
-        System.out.println(currentToken().getType());
-        if (currentToken().getType() == Token.TokenType.VARIABLE_NAME
-                || currentToken().getType() == Token.TokenType.NUMBER
-                || currentToken().getType() == Token.TokenType.TEXT_CONSTANT) {
-            parseAtomic(); // Parse atomic term (simple values like variables or constants)
-        } else if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
-            parseFunctionCall(); // Parse function call as a term
-        } else if (isBinOp(currentToken()) || isUnOp(currentToken())) {
-            parseOp(); // Parse binary/unary operation
-        }  else {
-            syntaxError("Invalid term");
+        Token current = currentToken();
+        
+        // TERM ::= ATOMIC
+        if (current.getType() == Token.TokenType.VARIABLE_NAME || 
+            current.getType() == Token.TokenType.NUMBER ||
+            current.getType() == Token.TokenType.TEXT_CONSTANT) {
+            parseAtomic();
+        }
+        // TERM ::= CALL
+        else if (current.getType() == Token.TokenType.FUNCTION_NAME) {
+            parseFunctionCall();
+        }
+        // TERM ::= OP
+        else if (isBinOp(current) || isUnOp(current)) {
+            parseOp();
+        }
+        else {
+            syntaxError("Expected term (atomic, function call, or operation)");
         }
     }
 
@@ -416,8 +453,10 @@ public class Parser {
     // Parse a function declaration (DECL ::= HEADER BODY)
     private void parseDecl() {
         System.out.println("Parsing function declaration: " + currentToken().getValue());
-        parseHeader(); // Parse function header
-        parseBody(); // Parse function body
+        scopeLevel++;
+        parseHeader();
+        parseBody();
+        scopeLevel--;
     }
 
     // Parse function header (HEADER ::= FTYP FNAME( VNAME , VNAME , VNAME ))
@@ -497,10 +536,24 @@ public class Parser {
 
     // Parse local variables (LOCVARS ::= VTYP VNAME , VTYP VNAME , VTYP VNAME)
     private void parseLocVars() {
+        // First variable
+        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
+            syntaxError("Expected type declaration (num or text) for first local variable");
+        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
+        
+        // Second variable
+        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
+            syntaxError("Expected type declaration (num or text) for second local variable");
+        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
+        
+        // Third variable
+        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
+            syntaxError("Expected type declaration (num or text) for third local variable");
+        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
     }
