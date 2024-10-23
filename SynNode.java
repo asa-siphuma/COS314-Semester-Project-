@@ -33,6 +33,11 @@ class SynNode {
         this.children.add(child);
     }
 
+    public boolean isParameterSection() {
+        // Assuming your HEADER nodes have a specific value that identifies them
+        return "HEADER".equals(value);
+    }
+
     // Method to print the tree for debugging (optional)
     public void display(String indent) {
         System.out.println(indent + "[ID: " + id + (value != null ? ", Value: " + value : "") + "]");

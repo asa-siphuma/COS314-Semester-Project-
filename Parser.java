@@ -5,8 +5,6 @@ public class Parser {
 
     private List<Token> tokens;
     private int currentTokenIndex = 0;
-    private int unid = 0;
-
     public Parser(List<Token> tokens) throws IOException {
         this.tokens = tokens;
     }
