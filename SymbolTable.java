@@ -65,4 +65,35 @@ public class SymbolTable {
         }
         return sb.toString();
     }
+
+    public String getType(String value) {
+        for (int i = scopes.size() - 1; i >= 0; i--) {
+            SymbolInfo symbol = scopes.get(i).get(value);
+            if (symbol != null) {
+                return symbol.getType();  // Assuming SymbolInfo has a getType method
+            }
+        }
+        return null;  // If symbol is not found, return null or throw an exception
+    }
+
+    public String lookup(String variableName) {
+        for (int i = scopes.size() - 1; i >= 0; i--) {
+            SymbolInfo symbol = scopes.get(i).get(variableName);
+            if (symbol != null) {
+                return symbol.getName();  // Assuming SymbolInfo has a getName method
+            }
+        }
+        return null;  // If variable is not found, return null or throw an exception
+    }
+
+    public void linkReference(String valueOf, String uniqueName) {
+        // Assuming that linking a reference means updating the name or type of a symbol
+        for (int i = scopes.size() - 1; i >= 0; i--) {
+            SymbolInfo symbol = scopes.get(i).get(valueOf);
+            if (symbol != null) {
+                symbol.setName(uniqueName);  // Assuming SymbolInfo has a setName method
+                return;
+            }
+        }
+    }
 }
