@@ -1,5 +1,6 @@
 import java.util.List;
 import java.io.IOException;
+import java.io.FileWriter;
 
 public class Main {
 
@@ -26,7 +27,7 @@ public class Main {
 
             // Print the tokens
             for (Token token : tokens) {
-            System.out.println(token);
+                System.out.println(token);
             }
 
             // Step 6: Initialize the parser with the tokens from the XML
@@ -59,6 +60,22 @@ public class Main {
 
             if (isTypeCorrect) {
                 System.out.println("Type checking passed successfully.");
+
+                // Step 10: Initialize the Translator
+                Translator translator = new Translator(syntaxTree);
+
+                // Step 11: Perform translation
+                translator.translate();
+
+                // Step 12: Retrieve translated code with line numbers
+                String translatedCode = translator.translateToBasicWithLineNumbers();
+
+                // Step 13: Save the translated code to a file
+                try (FileWriter fileWriter = new FileWriter("output/translatedProgram.bas")) {
+                    fileWriter.write(translatedCode);
+                    System.out.println("Translation completed. Translated code saved to output/translatedProgram.bas");
+                }
+
             } else {
                 System.out.println("Type checking failed.");
             }
