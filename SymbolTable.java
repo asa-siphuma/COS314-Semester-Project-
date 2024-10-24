@@ -5,7 +5,6 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.*;
 
 class SymbolTable {
     private Map<String, String> symbolMap = new HashMap<>(); // Global symbol table for variables/functions

@@ -193,15 +193,15 @@ public class Lexer {
         return new Token(Token.TokenType.NUMBER, number, line, startCol);
     }
 
-    private boolean isValidIdentifierPart(String name) {
-        return name.matches("[a-z]([a-z0-9])*");
-    }
+    // private boolean isValidIdentifierPart(String name) {
+    //     return name.matches("[a-z]([a-z0-9])*");
+    // }
     
-    // Helper method to print token information during debugging
-    private void debugToken(String tokenType, String value, int line, int column) {
-        System.out.println(String.format("Token: type=%s, value='%s', line=%d, column=%d",
-            tokenType, value, line, column));
-    }
+    // // Helper method to print token information during debugging
+    // private void debugToken(String tokenType, String value, int line, int column) {
+    //     System.out.println(String.format("Token: type=%s, value='%s', line=%d, column=%d",
+    //         tokenType, value, line, column));
+    // }
 
     private Token readTextConstant() {
         int startCol = column;
