@@ -24,10 +24,10 @@ public class Main {
             // Step 5: Use XMLTokenReader to read the tokens back from the XML file
             List<Token> tokens = XMLTokenReader.readTokensFromXML(outputXML);
 
-            // // Print the tokens
-            // for (Token token : tokens) {
-            // System.out.println(token);
-            // }
+            // Print the tokens
+            for (Token token : tokens) {
+            System.out.println(token);
+            }
 
             // Step 6: Initialize the parser with the tokens from the XML
             Parser parser = new Parser(tokens);
@@ -51,8 +51,17 @@ public class Main {
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
             analyzer.analyze(syntaxTree);
 
-            // Output the symbol table with unique names
-            // analyzer.getSymbolTable().printTable();
+            SymbolTable symbolTable = new SymbolTable();
+            TypeChecker typeChecker = new TypeChecker(symbolTable);
+
+            // Step 9: Perform type checking
+            boolean isTypeCorrect = typeChecker.typecheck(syntaxTree);
+
+            if (isTypeCorrect) {
+                System.out.println("Type checking passed successfully.");
+            } else {
+                System.out.println("Type checking failed.");
+            }
 
         } catch (IOException e) {
             System.err.println("Error reading the file: " + e.getMessage());
@@ -63,9 +72,3 @@ public class Main {
         }
     }
 }
-
-/*
- * public String generateUniqueName(String originalName) {
-        return originalName + "_" + UUID.randomUUID().toString().substring(0, 4);
-    }
- */
