@@ -6,8 +6,8 @@ public class Parser {
 
     private List<Token> tokens;
     private int currentTokenIndex = 0;
-    private int unid = 0;
-    private SymbolTable symbolTable = new SymbolTable();
+    // private int unid = 0;
+    // private SymbolTable symbolTable = new SymbolTable();
     private Set<String> reservedKeywords = Set.of("if", "else", "then", "while", "print", "main", "or", "and", "sub", "mul", "div", "not", "eq", "grt", "input", "call", "num", "string", "begin", "end", "skip", "halt", "void", "add", "return", "sqrt", "text"); // Reserved keywords
 
     public Parser(List<Token> tokens) throws IOException {
