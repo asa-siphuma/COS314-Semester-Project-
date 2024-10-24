@@ -1,10 +1,15 @@
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 public class Parser {
 
     private List<Token> tokens;
     private int currentTokenIndex = 0;
+    private int unid = 0;
+    private SymbolTable symbolTable = new SymbolTable();
+    private Set<String> reservedKeywords = Set.of("if", "else", "then", "while", "print", "main", "or", "and", "sub", "mul", "div", "not", "eq", "grt", "input", "call", "num", "string", "begin", "end", "skip", "halt", "void", "add", "return", "sqrt", "text"); // Reserved keywords
+
     public Parser(List<Token> tokens) throws IOException {
         this.tokens = tokens;
     }
@@ -51,6 +56,9 @@ public class Parser {
         parseGlobVars();
         parseAlgo();
         parseFunctions();
+        System.out.println("Parsing program: " + currentToken().getValue());
+        match(Token.TokenType.KEYWORD, "end");
+
         if (currentToken().getType() != Token.TokenType.EOF) {
             syntaxError("Unexpected token after program end");
         }
@@ -73,9 +81,7 @@ public class Parser {
         if (varType.getValue().equals("num") || varType.getValue().equals("text")) {
             nextToken(); // Consume 'num' or 'text'
             if (currentToken().getType() == Token.TokenType.VARIABLE_NAME) {
-                if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                    syntaxError("Variable name cannot start with a digit");
-                }
+                checkValidVariableName();
                 nextToken(); // Consume variable name
             } else {
                 syntaxError("Expected variable name after type");
@@ -123,10 +129,10 @@ public class Parser {
     // Parse a command (COMMAND ::= skip | halt | print ATOMIC | ASSIGN | CALL |
     // BRANCH)
     private void parseCommand() {
-        System.out.println("Parsing command: " + currentToken().getValue());
+        System.out.println("Parsing command: ");
         Token command = currentToken();
 
-        // if command includes "F_"
+        // if command include "F_"
         if (command.getValue().startsWith("F_")) {
             parseFunctionCall();
             return;
@@ -135,65 +141,39 @@ public class Parser {
         switch (command.getValue()) {
             case "skip":
             case "halt":
-                nextToken();
+                nextToken(); // Simple commands: 'skip' or 'halt'
                 break;
             case "print":
-                nextToken();
-                parseAtomic();
+                nextToken(); // Consume 'print'
+                parseAtomic(); // Expect an atomic value after 'print'
                 break;
             case "return":
-                parseReturnCommand();
+                // System.out.println("Cmmand RETURN")
+                nextToken(); // Consume 'return'
+                parseAtomic(); // Expect an atomic value after 'return'
                 break;
             case "if":
-                parseBranch();
+                parseBranch(); // Conditional (if-else)
                 break;
             default:
-                parseAssign();
+                // System.out.println("Assignment: " + command.getValue());
+                parseAssign(); // Handle variable assignment
                 break;
         }
     }
 
-    private void parseReturnCommand() {
-        match(Token.TokenType.KEYWORD, "return");
-        
-        // Check if we're actually in a function context
-        if (scopeLevel == 0) {
-            syntaxError("Return statement only allowed within functions");
-        }
-
-        // Verify the next token can be parsed as ATOMIC
-        Token next = currentToken();
-        if (!isValidAtomic(next)) {
-            syntaxError("Expected atomic value (variable or constant) after return, found: " + next.getValue());
-        }
-
-        parseAtomic();
-    }
-
-    private boolean isValidAtomic(Token token) {
-        return token.getType() == Token.TokenType.VARIABLE_NAME || 
-               token.getType() == Token.TokenType.NUMBER ||
-               token.getType() == Token.TokenType.TEXT_CONSTANT;
-    }
-
-    // Add this field to track function context
-    private int scopeLevel = 0;
-
-    // Parse an assignment (ASSIGN ::= VNAME = TERM)
+    // Parse an assignment (ASSIGN ::= VNAME = TERM | ATOMIC < input)
     private void parseAssign() {
         if (currentToken().getType() == Token.TokenType.VARIABLE_NAME) {
-            if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                syntaxError("Variable name cannot start with a digit");
-            }
+            checkValidVariableName();
             nextToken(); // Consume the variable name
-            
-            // Check for input command
-            if (currentToken().getValue().equals("<")) {
-                nextToken(); // Consume '<'
-                match(Token.TokenType.KEYWORD, "input"); // Must match 'input'
-            } else {
-                match(Token.TokenType.KEYWORD, "="); // Standard assignment
+            System.out.println("Parsing assignment: " + currentToken().getValue());
+            if (currentToken().getValue().equals("=")) {
+                match(Token.TokenType.KEYWORD, "="); // Consume '='
                 parseTerm(); // Parse the term being assigned
+            } else if (currentToken().getValue().equals("< input")) {
+                System.out.println("parsing input");
+                nextToken(); // consume input
             }
         } else {
             syntaxError("Expected variable name for assignment");
@@ -202,24 +182,18 @@ public class Parser {
 
     // Parse a term (TERM ::= ATOMIC | CALL | OP)
     private void parseTerm() {
-        Token current = currentToken();
-        
-        // TERM ::= ATOMIC
-        if (current.getType() == Token.TokenType.VARIABLE_NAME || 
-            current.getType() == Token.TokenType.NUMBER ||
-            current.getType() == Token.TokenType.TEXT_CONSTANT) {
-            parseAtomic();
-        }
-        // TERM ::= CALL
-        else if (current.getType() == Token.TokenType.FUNCTION_NAME) {
-            parseFunctionCall();
-        }
-        // TERM ::= OP
-        else if (isBinOp(current) || isUnOp(current)) {
-            parseOp();
-        }
-        else {
-            syntaxError("Expected term (atomic, function call, or operation)");
+        System.out.println("Parsing term: " + currentToken().getValue());
+        System.out.println(currentToken().getType());
+        if (currentToken().getType() == Token.TokenType.VARIABLE_NAME
+                || currentToken().getType() == Token.TokenType.NUMBER
+                || currentToken().getType() == Token.TokenType.TEXT_CONSTANT) {
+            parseAtomic(); // Parse atomic term (simple values like variables or constants)
+        } else if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
+            parseFunctionCall(); // Parse function call as a term
+        } else if (isBinOp(currentToken()) || isUnOp(currentToken())) {
+            parseOp(); // Parse binary/unary operation
+        } else {
+            syntaxError("Invalid term");
         }
     }
 
@@ -229,6 +203,11 @@ public class Parser {
         Token atomic = currentToken();
         if (atomic.getType() == Token.TokenType.VARIABLE_NAME || atomic.getType() == Token.TokenType.NUMBER
                 || atomic.getType() == Token.TokenType.TEXT_CONSTANT) {
+
+            if (atomic.getValue().startsWith("V_")) {
+                checkValidVariableName();
+            }
+
             nextToken(); // Consume atomic value
         } else {
             syntaxError("Expected an atomic value (variable, number, or text constant)");
@@ -244,9 +223,7 @@ public class Parser {
             // Unary operation
             nextToken(); // Consume the unary operator
             match(Token.TokenType.KEYWORD, "("); // Expect an opening parenthesis
-
             parseArg(); // Parse the argument for the unary operation
-
             match(Token.TokenType.KEYWORD, ")"); // Expect closing parenthesis
         } else if (isBinOp(op)) {
             // Binary operation
@@ -275,8 +252,8 @@ public class Parser {
         match(Token.TokenType.KEYWORD, ")"); // Expect closing parenthesis
 
         // if (lookahead(1).getValue().equals("(")) {
-        //     System.out.println("oo");
-        //     nextToken();
+        // System.out.println("oo");
+        // nextToken();
         // }
 
         System.out.println("DONE parsing binary operation: " + currentToken().getValue());
@@ -353,16 +330,21 @@ public class Parser {
     private void parseBranch() {
         match(Token.TokenType.KEYWORD, "if");
         parseCond(); // Parse the condition
+
         match(Token.TokenType.KEYWORD, "then");
+
         parseAlgo(); // Parse the 'then' part
+
         match(Token.TokenType.KEYWORD, "else");
+
         parseAlgo(); // Parse the 'else' part
     }
 
     // Parse condition (COND ::= SIMPLE | COMPOSIT)
     private void parseCond() {
         if (isBinOp(currentToken())) {
-            if (isBinOp(lookahead(2))) { // Check if it's a composite condition: e.g or(eq(3,2), lt(3,2)) - second char after the first binop is a binop, hence its composit
+            if (isBinOp(lookahead(2))) { // Check if it's a composite condition: e.g or(eq(3,2), lt(3,2)) - second char
+                                         // after the first binop is a binop, hence its composit
                 parseComposit(); // Handling composite conditions
             } else {
                 parseSimple();
@@ -422,9 +404,7 @@ public class Parser {
     private void parseFunctionCall() {
         System.out.println("Parsing function call: " + currentToken().getValue());
         if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
-            if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                syntaxError("Function name cannot start with a digit");
-            }
+            checkValidFunctionName();
             nextToken(); // Consume function name
             match(Token.TokenType.KEYWORD, "(");
             parseAtomic(); // First argument
@@ -441,7 +421,10 @@ public class Parser {
     // Parse functions (FUNCTIONS ::= DECL FUNCTIONS | ε)
     private void parseFunctions() {
         System.out.println("Parsing function: " + currentToken().getType());
-        if (currentToken().getType() == Token.TokenType.KEYWORD) {
+        if (currentToken().getType() == Token.TokenType.EOF) {
+            System.out.println("No functions found");
+            // return;
+        } else if (currentToken().getValue().equals("num") || currentToken().getValue().equals("void")) {
             parseDecl(); // Parse a function declaration
             parseFunctions(); // Recursively handle more functions
         }
@@ -451,10 +434,8 @@ public class Parser {
     // Parse a function declaration (DECL ::= HEADER BODY)
     private void parseDecl() {
         System.out.println("Parsing function declaration: " + currentToken().getValue());
-        scopeLevel++;
-        parseHeader();
-        parseBody();
-        scopeLevel--;
+        parseHeader(); // Parse function header
+        parseBody(); // Parse function body
     }
 
     // Parse function header (HEADER ::= FTYP FNAME( VNAME , VNAME , VNAME ))
@@ -465,17 +446,20 @@ public class Parser {
             if (currentToken().getType() == Token.TokenType.FUNCTION_NAME) {
                 System.out.println("Parsing function name: " + currentToken().getValue());
                 if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                syntaxError("Function name cannot start with a digit");
-            }
+                    syntaxError("Function name cannot start with a digit");
+                }
+                // if the characters after the V_ is a keyword give an error
+                String subString = currentToken().getValue().substring(2);
+                if (reservedKeywords.contains(subString)) {
+                    syntaxError("Function name cannot be a keyword");
+                }
                 nextToken(); // Consume function name
                 match(Token.TokenType.KEYWORD, "(");
 
                 // Parse 1st argument
                 if (currentToken().getValue().startsWith("V_")) {
                     System.out.println("Parsing variable name: " + currentToken().getValue().charAt(2));
-                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                        syntaxError("Variable name cannot start with a digit");
-                    }
+                    checkValidVariableName();
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -485,10 +469,7 @@ public class Parser {
 
                 // Parse 2nd argument
                 if (currentToken().getValue().startsWith("V_")) {
-                    System.out.println("Parsing variable name: " + currentToken().getValue());
-                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                        syntaxError("Variable name cannot start with a digit");
-                    }
+                    checkValidVariableName();
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -499,9 +480,7 @@ public class Parser {
                 // Parse 3rd argument
                 if (currentToken().getValue().startsWith("V_")) {
                     System.out.println("Parsing variable name: " + currentToken().getValue());
-                    if (Character.isDigit(currentToken().getValue().charAt(2))) {
-                        syntaxError("Variable name cannot start with a digit");
-                    }
+                    checkValidVariableName();
                     nextToken(); // Consume variable name
                 } else {
                     syntaxError("Expected variable name in function header");
@@ -528,30 +507,16 @@ public class Parser {
         if (currentToken().getValue().equals("num") || currentToken().getValue().equals("void")) {
             parseSubFuncs();
         }
-        match(Token.TokenType.KEYWORD, "end");
+
         System.out.println("Done parsing function body: " + currentToken().getValue());
     }
 
     // Parse local variables (LOCVARS ::= VTYP VNAME , VTYP VNAME , VTYP VNAME)
     private void parseLocVars() {
-        // First variable
-        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
-            syntaxError("Expected type declaration (num or text) for first local variable");
-        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
-        
-        // Second variable
-        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
-            syntaxError("Expected type declaration (num or text) for second local variable");
-        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
-        
-        // Third variable
-        if (!currentToken().getValue().equals("num") && !currentToken().getValue().equals("text")) {
-            syntaxError("Expected type declaration (num or text) for third local variable");
-        }
         parseVarDeclaration(true);
         match(Token.TokenType.KEYWORD, ",");
     }
@@ -570,7 +535,42 @@ public class Parser {
     }
 
     private boolean isAtomic(Token token) {
-        return token.getTokenClass().equals("V") || token.getTokenClass().equals("N")
-                || token.getTokenClass().equals("T");
+        return token.getTokenClass().equals("V") || token.getTokenClass().equals("N") || token.getTokenClass().equals("T");
+    }
+
+    private void checkValidFunctionName() {
+        if (currentToken().getValue().startsWith("F_")) {
+            // check is something follows the F_
+            if (currentToken().getValue().length() < 3) {
+                syntaxError("Function name too short");
+            }
+            // if the characters after the F_ is a keyword give an error
+            if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                syntaxError("Function name cannot start with a digit");
+            }
+            // if the characters after the V_ is a keyword give an error
+            String subString = currentToken().getValue().substring(2);
+            if (reservedKeywords.contains(subString)) {
+                syntaxError("Variable name cannot be a keyword");
+            }
+        }
+    }
+
+    public void checkValidVariableName() {
+        if (currentToken().getValue().startsWith("V_")) {
+            // check is something follows the V_
+            if (currentToken().getValue().length() < 3) {
+                syntaxError("Variable name too short");
+            }
+            // if the characters after the V_ is a keyword give an error
+            if (Character.isDigit(currentToken().getValue().charAt(2))) {
+                syntaxError("Variable name cannot start with a digit");
+            }
+            // if the characters after the V_ is a keyword give an error
+            String subString = currentToken().getValue().substring(2);
+            if (reservedKeywords.contains(subString)) {
+                syntaxError("Variable name cannot be a keyword");
+            }
+        }
     }
 }
