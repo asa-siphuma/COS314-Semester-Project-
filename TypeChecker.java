@@ -3,441 +3,750 @@ import java.util.ArrayList;
 
 public class TypeChecker {
     private final SymbolTable symbolTable;
-    private String currentFunctionScope = "global";
+    private String currentFunctionScope = null;
+    private int indentLevel = 0;
+    private static final String INDENT = "  ";
 
     public TypeChecker(SymbolTable symbolTable) {
         this.symbolTable = symbolTable;
     }
 
-    // Main entry point for type checking
-    public boolean typecheck(SynNode prog) {
-        return typecheckGlobVars(findFirstChildOfType(prog, "GLOBVARS")) &&
-               typecheckAlgo(findFirstChildOfType(prog, "ALGO")) &&
-               typecheckFunctions(findFirstChildOfType(prog, "FUNCTIONS"));
+    private void log(String message) {
+        System.out.println(INDENT.repeat(indentLevel) + message);
     }
 
-    // Helper method to find first child node of a specific type
+    private void enterScope(String scopeName) {
+        log("Entering " + scopeName);
+        indentLevel++;
+    }
+
+    private void exitScope(String scopeName, boolean result) {
+        indentLevel--;
+        log("Exiting " + scopeName + " -> " + result);
+    }
+
+    // Main entry point for type checking according to PROG rule
+    public boolean typecheck(SynNode prog) {
+        enterScope("PROG");
+        
+        // Add null check with detailed logging
+        if (prog == null) {
+            log("ERROR: Root node is null");
+            symbolTable.exitScope();
+            exitScope("PROG", false);
+            return false;
+        }
+    
+        // Enhanced root node logging
+        log("Root node details:");
+        log("Type: '" + (prog.getType() == null ? "null" : prog.getType()) + "'");
+        log("Value: '" + (prog.getValue() == null ? "null" : prog.getValue()) + "'");
+        log("Number of children: " + prog.getChildren().size());
+        
+        // Log children with more detail
+        if (!prog.getChildren().isEmpty()) {
+            log("Children details:");
+            for (int i = 0; i < prog.getChildren().size(); i++) {
+                SynNode child = prog.getChildren().get(i);
+                log(String.format("Child %d: Type='%s', Value='%s'", 
+                    i + 1,
+                    child.getType() == null ? "null" : child.getType(),
+                    child.getValue() == null ? "null" : child.getValue()));
+            }
+        }
+    
+        // Stricter type validation
+        if (prog.getType() == null || prog.getType().trim().isEmpty()) {
+            log("ERROR: Root node type is null or empty");
+            exitScope("PROG", false);
+            return false;
+        }
+    
+        if (!prog.getType().equals("PROG")) {
+            log(String.format("ERROR: Root node is not PROG (found '%s' instead)", prog.getType()));
+            exitScope("PROG", false);
+            return false;
+        }
+    
+        // Continue with existing type checking
+        boolean globVarsResult = typecheckGlobVars(findFirstChildOfType(prog, "GLOBVARS"));
+        log("GLOBVARS check result: " + globVarsResult);
+    
+        boolean algoResult = typecheckAlgo(findFirstChildOfType(prog, "ALGO"));
+        log("ALGO check result: " + algoResult);
+    
+        boolean functionsResult = typecheckFunctions(findFirstChildOfType(prog, "FUNCTIONS"));
+        log("FUNCTIONS check result: " + functionsResult);
+    
+        boolean finalResult = globVarsResult && algoResult && functionsResult;
+        symbolTable.exitScope();
+        exitScope("PROG", finalResult);
+        return finalResult;
+    }
+
+    // private void validateNodeProperties(SynNode node, String context) {
+    //     if (node == null) {
+    //         log(context + ": Node is null");
+    //         return;
+    //     }
+        
+    //     log(context + " properties:");
+    //     log("- Type: '" + (node.getType() == null ? "null" : node.getType()) + "'");
+    //     log("- Value: '" + (node.getValue() == null ? "null" : node.getValue()) + "'");
+    //     log("- Children count: " + node.getChildren().size());
+        
+    //     if (node.getType() == null || node.getType().trim().isEmpty()) {
+    //         log("WARNING: " + context + " has null or empty type");
+    //     }
+    // }
+
+    public boolean typecheckHeader(SynNode header) {
+        enterScope("HEADER");
+        
+        if (header == null) {
+            log("ERROR: Header is null");
+            exitScope("HEADER", false);
+            return false;
+        }
+        
+        // Debug the entire header structure
+        log("Header node structure:");
+        logNodeStructure(header, 1);
+        
+        SynNode ftypNode = findFirstChildOfType(header, "FTYP");
+        SynNode fnameNode = findFirstChildOfType(header, "FNAME");
+        
+        if (ftypNode == null || fnameNode == null) {
+            log("ERROR: Missing FTYP or FNAME node");
+            log("FTYP: " + (ftypNode == null ? "null" : "present"));
+            log("FNAME: " + (fnameNode == null ? "null" : "present"));
+            exitScope("HEADER", false);
+            return false;
+        }
+        
+        String functionType = getFunctionType(ftypNode);
+        if (functionType == null || functionType.equals("u")) {
+            log("ERROR: Could not determine function type");
+            log("FTYP node details:");
+            logNodeStructure(ftypNode, 1);
+            exitScope("HEADER", false);
+            return false;
+        }
+        
+        String functionName = fnameNode.getValue();
+        if (functionName == null || functionName.trim().isEmpty()) {
+            log("ERROR: Function name is null or empty");
+            exitScope("HEADER", false);
+            return false;
+        }
+    
+        log("Function details - Type: " + functionType + ", Name: " + functionName);
+        
+        symbolTable.enterScope(functionName);
+        String functionId = symbolTable.getIdentifier(functionName);
+        symbolTable.linkType(functionId, functionType);
+        
+        // Process parameters
+        List<SynNode> parameters = new ArrayList<>();
+        for (SynNode child : header.getChildren()) {
+            if ("VNAME".equals(child.getType())) {
+                parameters.add(child);
+            }
+        }
+        
+        if (parameters.size() != 3) {
+            log("ERROR: Expected 3 parameters, found " + parameters.size());
+            symbolTable.exitScope();
+            exitScope("HEADER", false);
+            return false;
+        }
+        
+        log("Processing parameters:");
+        boolean paramsValid = true;
+        for (SynNode param : parameters) {
+            if (param == null || param.getValue() == null) {
+                log("ERROR: Parameter or parameter value is null");
+                paramsValid = false;
+                continue;
+            }
+            
+            String paramValue = param.getValue();
+            log("Processing parameter: " + paramValue);
+            
+            String paramId = symbolTable.getIdentifier(paramValue);
+            symbolTable.linkType(paramId, "n");  // All parameters are numeric
+            
+            String paramType = symbolTable.getType(paramValue);
+            if (paramType == null || !paramType.equals("n")) {
+                log("ERROR: Invalid type for parameter " + paramValue + ": " + paramType);
+                paramsValid = false;
+            } else {
+                log("Successfully processed parameter " + paramValue + " with type " + paramType);
+            }
+        }
+        
+        if (!paramsValid) {
+            symbolTable.exitScope();
+            exitScope("HEADER", false);
+            return false;
+        }
+        
+        exitScope("HEADER", true);
+        return true;
+    }
+    
+    // New helper method to specifically handle function type determination
+    private String getFunctionType(SynNode ftypNode) {
+        log("Determining function type from FTYP node:");
+        logNodeStructure(ftypNode, 1);
+        
+        // First try the direct value
+        String directValue = ftypNode.getValue();
+        if (isValidType(directValue)) {
+            log("Found valid type in direct value: " + directValue);
+            return convertToTypeCode(directValue);
+        }
+        
+        // Check children
+        for (SynNode child : ftypNode.getChildren()) {
+            // Check the child's value
+            String childValue = child.getValue();
+            if (isValidType(childValue)) {
+                log("Found valid type in child value: " + childValue);
+                return convertToTypeCode(childValue);
+            }
+            
+            // If child has children, check them too
+            for (SynNode grandchild : child.getChildren()) {
+                String grandchildValue = grandchild.getValue();
+                if (isValidType(grandchildValue)) {
+                    log("Found valid type in grandchild value: " + grandchildValue);
+                    return convertToTypeCode(grandchildValue);
+                }
+            }
+        }
+        
+        log("Could not determine valid type");
+        return "u";
+    }
+    
+    // Helper method to check if a value represents a valid type
+    private boolean isValidType(String value) {
+        if (value == null) return false;
+        value = value.toLowerCase();
+        return value.equals("num") || value.equals("number") || 
+               value.equals("text") || value.equals("string") || 
+               value.equals("void");
+    }
+    
+    // Helper method to convert type strings to type codes
+    private String convertToTypeCode(String type) {
+        if (type == null) return "u";
+        type = type.toLowerCase();
+        switch (type) {
+            case "num":
+            case "number":
+                return "n";
+            case "text":
+            case "string":
+                return "t";
+            case "void":
+                return "v";
+            default:
+                return "u";
+        }
+    }
+    
+    // Helper method to log node structure
+    private void logNodeStructure(SynNode node, int depth) {
+        if (node == null) {
+            log("null node");
+            return;
+        }
+        
+        String indent = "  ".repeat(depth);
+        log(indent + "Node Type: '" + node.getType() + "'");
+        log(indent + "Node Value: '" + node.getValue() + "'");
+        
+        if (!node.getChildren().isEmpty()) {
+            log(indent + "Children:");
+            for (SynNode child : node.getChildren()) {
+                logNodeStructure(child, depth + 1);
+            }
+        }
+    }
+
+    // BODY type checking rules
+    private boolean typecheckBody(SynNode body) {
+        enterScope("BODY");
+        
+        if (body == null) {
+            log("ERROR: Body is null");
+            exitScope("BODY", false);
+            return false;
+        }
+        
+        SynNode prolog = findFirstChildOfType(body, "PROLOG");
+        if (prolog == null || !prolog.getValue().equals("{")) {
+            log("ERROR: Invalid or missing PROLOG");
+            exitScope("BODY", false);
+            return false;
+        }
+        
+        boolean locvarsResult = typecheckLocVars(findFirstChildOfType(body, "LOCVARS"));
+        log("LOCVARS check result: " + locvarsResult);
+        if (!locvarsResult) {
+            exitScope("BODY", false);
+            return false;
+        }
+        
+        boolean algoResult = typecheckAlgo(findFirstChildOfType(body, "ALGO"));
+        log("ALGO check result: " + algoResult);
+        if (!algoResult) {
+            exitScope("BODY", false);
+            return false;
+        }
+        
+        SynNode epilog = findFirstChildOfType(body, "EPILOG");
+        if (epilog == null || !epilog.getValue().equals("}")) {
+            log("ERROR: Invalid or missing EPILOG");
+            exitScope("BODY", false);
+            return false;
+        }
+        
+        boolean subfuncsResult = typecheckFunctions(findFirstChildOfType(body, "SUBFUNCS"));
+        log("SUBFUNCS check result: " + subfuncsResult);
+        
+        exitScope("BODY", subfuncsResult);
+        return subfuncsResult;
+    }
+
+    // LOCVARS type checking rules
+    private boolean typecheckLocVars(SynNode locvars) {
+        enterScope("LOCVARS");
+        
+        if (locvars == null) {
+            log("No local variables declared");
+            exitScope("LOCVARS", true);
+            return true;
+        }
+        
+        List<SynNode> types = new ArrayList<>();
+        List<SynNode> names = new ArrayList<>();
+        
+        for (SynNode child : locvars.getChildren()) {
+            if (child.getType().equals("VTYP")) types.add(child);
+            else if (child.getType().equals("VNAME")) names.add(child);
+        }
+        
+        if (types.size() != 3 || names.size() != 3) {
+            log("ERROR: Expected 3 variable declarations, found types=" + types.size() + ", names=" + names.size());
+            exitScope("LOCVARS", false);
+            return false;
+        }
+        
+        for (int i = 0; i < 3; i++) {
+            String varType = typeof(types.get(i));
+            String varName = names.get(i).getValue();
+            String varId = symbolTable.getIdentifier(varName);
+            
+            log("Checking local variable: " + varName + " (type: " + varType + ")");
+            
+            symbolTable.linkType(varId, varType);
+            
+            if (!varType.equals("n") && !varType.equals("t")) {
+                log("ERROR: Invalid type for " + varName + ": " + varType);
+                exitScope("LOCVARS", false);
+                return false;
+            }
+        }
+        
+        exitScope("LOCVARS", true);
+        return true;
+    }
+
+    // Helper method for FTYP type determination
+    
+
     private SynNode findFirstChildOfType(SynNode node, String type) {
+        if (node == null || type == null) return null;
         for (SynNode child : node.getChildren()) {
-            if (child.getType().equals(type)) {
+            if (child != null && type.equals(child.getType())) {
+                return child;
+            }
+            // Also check children with empty types but matching values
+            if (child != null && child.getType().trim().isEmpty() && 
+                type.equals(child.getValue())) {
                 return child;
             }
         }
         return null;
     }
 
-    // Type check global variable declarations
+    // GLOBVARS type checking rules
     private boolean typecheckGlobVars(SynNode globVars) {
-        if (globVars == null || globVars.getChildren().isEmpty()) {
+        enterScope("GLOBVARS");
+        
+        if (globVars == null) {
+            log("No global variables declared");
+            exitScope("GLOBVARS", true);
             return true;
         }
-
-        for (SynNode child : globVars.getChildren()) {
-            if (child.isVariableDeclaration()) {
-                String varType = getTypeFromVTYP(findFirstChildOfType(child, "VTYP"));
-                String varName = findFirstChildOfType(child, "VNAME").getValue();
-                
-                symbolTable.declareVariable(varName, varType, currentFunctionScope);
-                if (!varType.equals("n") && !varType.equals("t")) {
-                    return false;
-                }
+        
+        log("Checking global variables:");
+        log("Number of children: " + globVars.getChildren().size());
+        
+        for (SynNode decl : globVars.getChildren()) {
+            log("Processing declaration: " + decl.getType());
+            
+            // Debug node structure
+            log("Declaration children:");
+            for (SynNode child : decl.getChildren()) {
+                log("- Child type: " + child.getType() + ", value: " + child.getValue());
             }
+            
+            SynNode vtyp = findFirstChildOfType(decl, "VTYP");
+            SynNode vname = findFirstChildOfType(decl, "VNAME");
+            
+            if (vtyp == null || vname == null) {
+                log("ERROR: Invalid global variable declaration");
+                log("VTYP: " + (vtyp == null ? "null" : "present"));
+                log("VNAME: " + (vname == null ? "null" : "present"));
+                exitScope("GLOBVARS", false);
+                return false;
+            }
+            
+            String type = typeof(vtyp);
+            log("Variable type determined: " + type);
+            log("Variable name: " + vname.getValue());
+            
+            if (!type.equals("n") && !type.equals("t")) {
+                log("ERROR: Invalid type for global variable: " + vname.getValue() + " (type: " + type + ")");
+                exitScope("GLOBVARS", false);
+                return false;
+            }
+            
+            String id = symbolTable.getIdentifier(vname.getValue());
+            symbolTable.linkType(id, type);
+            log("Successfully linked type " + type + " to variable " + vname.getValue());
         }
+        
+        exitScope("GLOBVARS", true);
         return true;
     }
+    
 
-    // Get type from VTYP node
-    private String getTypeFromVTYP(SynNode vtypNode) {
-        if (vtypNode == null) return "u";
-        String value = vtypNode.getValue();
-        switch (value) {
-            case "num": return "n";
-            case "text": return "t";
-            case "void": return "v";
-            default: return "u";
+    // Type determination helper following the specification
+    private String typeof(SynNode node) {
+        if (node == null) {
+            log("WARNING: typeof called with null node");
+            return "u";
         }
+        
+        String result = "u";
+        log("Checking type of " + node.getType() + " node: " + node.getValue());
+        
+        if (!node.getChildren().isEmpty()) {
+            log("- Children:");
+            for (SynNode child : node.getChildren()) {
+                log("  * " + child.getType() + ": " + child.getValue());
+            }
+        }
+
+        log("- Type: " + node.getType());
+    log("- Value: " + node.getValue());
+        SynNode unop;
+        switch (node.getType()) {
+            case "SIMPLE":
+                SynNode binop = findFirstChildOfType(node, "BINOP");
+                if (binop == null) return "u";
+                String atomic1Type = typeof(findFirstChildOfType(node, "ATOMIC1"));
+                String atomic2Type = typeof(findFirstChildOfType(node, "ATOMIC2"));
+                
+                if (binop.getValue().equals("eq") || binop.getValue().equals("grt")) {
+                    return (atomic1Type.equals("n") && atomic2Type.equals("n")) ? "b" : "u";
+                }
+                return (atomic1Type.equals("b") && atomic2Type.equals("b")) ? "b" : "u";
+            
+            case "COMPOSIT":
+                binop = findFirstChildOfType(node, "BINOP");
+                unop = findFirstChildOfType(node, "UNOP");
+                
+                if (binop != null) {
+                    String simple1Type = typeof(findFirstChildOfType(node, "SIMPLE1"));
+                    String simple2Type = typeof(findFirstChildOfType(node, "SIMPLE2"));
+                    return (simple1Type.equals("b") && simple2Type.equals("b")) ? "b" : "u";
+                }
+                if (unop != null) {
+                    String simpleType = typeof(findFirstChildOfType(node, "SIMPLE"));
+                    return simpleType.equals("b") ? "b" : "u";
+                }
+                return "u";    
+            case "VTYP":
+                if (node.getValue().equals("num")) {
+                    result = "n";
+                    log("Found numeric type");
+                }
+                else if (node.getValue().equals("text")) {
+                    result = "t";
+                    log("Found text type");
+                }
+                else if (node.getValue().equals("void")) {
+                    result = "v";
+                    log("Found void type");
+                }
+                else {
+                    log("WARNING: Unknown VTYP value: " + node.getValue());
+                }
+                break;
+            case "ATOMIC":
+                if (node.isConstant()) {
+                    if (node.getValue().startsWith("\"")) result = "t";
+                    else {
+                        try {
+                            Double.parseDouble(node.getValue());
+                            result = "n";
+                        } catch (NumberFormatException e) {
+                            log("WARNING: Invalid numeric constant: " + node.getValue());
+                        }
+                    }
+                } else {
+                    result = symbolTable.getType(node.getValue());
+                }
+                break;
+            case "CALL":
+                result = typecheckCall(node) ? symbolTable.getType(findFirstChildOfType(node, "FNAME").getValue()) : "u";
+                break;
+            case "OP":
+                result = getOperationType(node);
+                break;
+        }
+        
+        log("Type determined: " + result);
+        return result;
     }
 
-    // Type check algorithms (statements)
+    // ALGO type checking rule
     private boolean typecheckAlgo(SynNode algo) {
         if (algo == null) return true;
         return typecheckInstruc(findFirstChildOfType(algo, "INSTRUC"));
     }
 
-    // Type check instructions
+    // INSTRUC type checking rules
     private boolean typecheckInstruc(SynNode instruc) {
-        if (instruc == null || instruc.getChildren().isEmpty()) {
-            return true;
-        }
-
-        boolean result = true;
-        for (SynNode child : instruc.getChildren()) {
-            if (child.getType().equals("COMMAND")) {
-                result &= typecheckCommand(child);
-            }
-        }
-        return result;
-    }
-
-    // Type check individual commands
-    private boolean typecheckCommand(SynNode command) {
-        if (command == null) return true;
-
-        // Handle simple commands
-        if (command.getValue() != null) {
-            switch (command.getValue()) {
-                case "skip":
-                case "halt":
-                    return true;
-            }
-        }
-
-        // Handle complex commands
-        for (SynNode child : command.getChildren()) {
-            switch (child.getType()) {
-                case "PRINT":
-                    return typecheckPrint(child);
-                case "ASSIGN":
-                    return typecheckAssign(child);
-                case "CALL":
-                    return typecheckCall(child);
-                case "BRANCH":
-                    return typecheckBranch(child);
-                case "RETURN":
-                    return typecheckReturn(child);
-            }
-        }
-        return false;
-    }
-
-    // Type check print statements
-    private boolean typecheckPrint(SynNode print) {
-        SynNode atomic = findFirstChildOfType(print, "ATOMIC");
-        String atomicType = getAtomicType(atomic);
-        return atomicType.equals("n") || atomicType.equals("t");
-    }
-
-    // Type check assignments
-    private boolean typecheckAssign(SynNode assign) {
-        SynNode vname = findFirstChildOfType(assign, "VNAME");
-        String vnameType = symbolTable.getType(vname.getValue());
-
-        // Check for input assignment
-        if (assign.getValue() != null && assign.getValue().contains("input")) {
-            return vnameType.equals("n"); // Only numeric input allowed
-        }
-
-        // Check for regular assignment
-        SynNode term = findFirstChildOfType(assign, "TERM");
-        String termType = getTermType(term);
-        return vnameType.equals(termType);
-    }
-
-    public void checkAssignment(String variableName, String assignedType) {
-        String varType = symbolTable.lookup(variableName);
-        if (varType == null) {
-            System.out.println("Error: Variable " + variableName + " not declared.");
-        } else if (!varType.equals(assignedType)) {
-            System.out.println("Error: Type mismatch in assignment to " + variableName + ": expected " + varType + " but got " + assignedType);
-        } else {
-            System.out.println("Assignment to " + variableName + " is valid.");
-        }
-    }
-
-    // Get type of a term
-    private String getTermType(SynNode term) {
-        if (term == null) return "u";
-
-        if (term.isVariableUsage()) {
-            return symbolTable.getType(term.getValue());
-        }
-
-        if (term.isFunctionCall()) {
-            return typecheckCall(term) ? symbolTable.getType(term.getValue()) : "u";
-        }
-
-        // Handle operations
-        SynNode op = findFirstChildOfType(term, "OP");
-        if (op != null) {
-            return getOperationType(op);
-        }
-
-        return "u";
-    }
-
-    // Type check function calls
-    private boolean typecheckCall(SynNode call) {
-        if (!call.isFunctionCall()) return false;
-
-        String funcName = findFirstChildOfType(call, "FNAME").getValue();
-        List<SynNode> params = new ArrayList<>();
-        for (SynNode child : call.getChildren()) {
-            if (child.getType().equals("ATOMIC")) {
-                params.add(child);
-            }
-        }
-
-        // Check if all parameters are numeric
-        for (SynNode param : params) {
-            if (!getAtomicType(param).equals("n")) {
+        if (instruc == null) return true; // Base case
+        
+        for (SynNode command : instruc.getChildren()) {
+            if (command.getType().equals("COMMAND") && !typecheckCommand(command)) {
                 return false;
             }
         }
-
-        return symbolTable.isFunction(funcName);
+        return true;
     }
 
-    // Get type of an atomic value
-    private String getAtomicType(SynNode atomic) {
-        if (atomic.isVariableUsage()) {
-            return symbolTable.getType(atomic.getValue());
+    // COMMAND type checking rules
+    private boolean typecheckCommand(SynNode command) {
+        if (command == null) return true;
+        
+        String cmdType = command.getValue();
+        if ("skip".equals(cmdType) || "halt".equals(cmdType)) {
+            return true;
         }
-        // Handle constants
-        if (atomic.getValue().startsWith("\"")) {
-            return "t";
+
+        // Handle print command
+        if (command.getType().equals("PRINT")) {
+            String atomicType = typeof(findFirstChildOfType(command, "ATOMIC"));
+            return atomicType.equals("n") || atomicType.equals("t");
         }
-        try {
-            Double.parseDouble(atomic.getValue());
-            return "n";
-        } catch (NumberFormatException e) {
-            return "u";
+
+        // Handle return command
+        if (command.getType().equals("RETURN")) {
+            if (currentFunctionScope == null) return false;
+            String atomicType = typeof(findFirstChildOfType(command, "ATOMIC"));
+            String functionType = symbolTable.getType(currentFunctionScope);
+            return atomicType.equals(functionType) && functionType.equals("n");
+        }
+
+        // Handle other command types
+        SynNode child = command.getChildren().get(0);
+        switch (child.getType()) {
+            case "ASSIGN": return typecheckAssign(child);
+            case "CALL": return typeof(child).equals("v");
+            case "BRANCH": return typecheckBranch(child);
+            default: return false;
         }
     }
 
-    // Type check branches (if statements)
-    private boolean typecheckBranch(SynNode branch) {
-        SynNode cond = findFirstChildOfType(branch, "COND");
-        SynNode algo1 = findFirstChildOfType(branch, "ALGO1");
-        SynNode algo2 = findFirstChildOfType(branch, "ALGO2");
+    // ASSIGN type checking rules
+    private boolean typecheckAssign(SynNode assign) {
+        enterScope("ASSIGN");
+        
+        SynNode vname = findFirstChildOfType(assign, "VNAME");
+        String vnameType = symbolTable.getType(vname.getValue());
+        log("Assignment target: " + vname.getValue() + " (type: " + vnameType + ")");
 
-        return getConditionType(cond).equals("b") &&
-               typecheckAlgo(algo1) &&
-               typecheckAlgo(algo2);
-    }
-
-    // Get type of a condition
-    private String getConditionType(SynNode cond) {
-        if (cond == null) return "u";
-
-        SynNode simple = findFirstChildOfType(cond, "SIMPLE");
-        if (simple != null) {
-            return getSimpleConditionType(simple);
+        if (assign.hasInput()) {
+            boolean result = vnameType.equals("n");
+            log("Input assignment - target must be numeric: " + result);
+            exitScope("ASSIGN", result);
+            return result;
         }
 
-        SynNode composit = findFirstChildOfType(cond, "COMPOSIT");
-        if (composit != null) {
-            return getCompositConditionType(composit);
-        }
-
-        return "u";
+        String termType = typeof(findFirstChildOfType(assign, "TERM"));
+        log("Assignment source type: " + termType);
+        boolean result = vnameType.equals(termType);
+        log("Type match: " + result);
+        
+        exitScope("ASSIGN", result);
+        return result;
     }
 
-    // Get type of a simple condition
-    private String getSimpleConditionType(SynNode simple) {
-        SynNode binop = findFirstChildOfType(simple, "BINOP");
-        if (binop == null) return "u";
-
-        String opType = binop.getValue();
+    // CALL type checking
+    private boolean typecheckCall(SynNode call) {
         List<SynNode> atomics = new ArrayList<>();
-        for (SynNode child : simple.getChildren()) {
+        
+        // Get all ATOMIC nodes
+        for (SynNode child : call.getChildren()) {
             if (child.getType().equals("ATOMIC")) {
                 atomics.add(child);
             }
         }
-
-        if (atomics.size() != 2) return "u";
-
-        String type1 = getAtomicType(atomics.get(0));
-        String type2 = getAtomicType(atomics.get(1));
-
-        if (opType.equals("eq") || opType.equals("grt")) {
-            return (type1.equals("n") && type2.equals("n")) ? "b" : "u";
+        
+        // Must have exactly 3 parameters
+        if (atomics.size() != 3) {
+            log("ERROR: Function call must have exactly 3 parameters, found " + atomics.size());
+            return false;
         }
-
-        return (type1.equals("b") && type2.equals("b")) ? "b" : "u";
-    }
-
-    // Get type of a composite condition
-    private String getCompositConditionType(SynNode composit) {
-        SynNode unop = findFirstChildOfType(composit, "UNOP");
-        if (unop != null) {
-            SynNode simple = findFirstChildOfType(composit, "SIMPLE");
-            return getSimpleConditionType(simple).equals("b") ? "b" : "u";
-        }
-
-        SynNode binop = findFirstChildOfType(composit, "BINOP");
-        if (binop != null) {
-            List<SynNode> simples = new ArrayList<>();
-            for (SynNode child : composit.getChildren()) {
-                if (child.getType().equals("SIMPLE")) {
-                    simples.add(child);
-                }
+        
+        // All parameters must be numeric
+        for (int i = 0; i < atomics.size(); i++) {
+            String paramType = typeof(atomics.get(i));
+            if (!paramType.equals("n")) {
+                log("ERROR: Parameter " + (i+1) + " must be numeric, found type " + paramType);
+                return false;
             }
-
-            if (simples.size() != 2) return "u";
-
-            return (getSimpleConditionType(simples.get(0)).equals("b") &&
-                    getSimpleConditionType(simples.get(1)).equals("b")) ? "b" : "u";
         }
-
-        return "u";
+        
+        return true;
     }
 
-    // Get type of an operation
+    // BRANCH type checking rules
+    private boolean typecheckBranch(SynNode branch) {
+        enterScope("BRANCH");
+        
+        SynNode cond = findFirstChildOfType(branch, "COND");
+        if (cond == null) {
+            log("ERROR: Missing condition in branch");
+            exitScope("BRANCH", false);
+            return false;
+        }
+        
+        String condType = typeof(cond);
+        if (!condType.equals("b")) {
+            log("ERROR: Branch condition must be boolean, found " + condType);
+            exitScope("BRANCH", false);
+            return false;
+        }
+        
+        SynNode thenAlgo = findFirstChildOfType(branch, "ALGO");
+        SynNode elseAlgo = findFirstChildOfType(branch.getChildren().get(1), "ALGO");
+        
+        if (thenAlgo == null || elseAlgo == null) {
+            log("ERROR: Missing then/else block in branch");
+            exitScope("BRANCH", false);
+            return false;
+        }
+        
+        boolean result = typecheckAlgo(thenAlgo) && typecheckAlgo(elseAlgo);
+        exitScope("BRANCH", result);
+        return result;
+    }
+
+    // FUNCTIONS type checking rules
+    private boolean typecheckFunctions(SynNode functions) {
+        if (functions == null) return true; // Base case
+        
+        for (SynNode decl : functions.getChildren()) {
+            if (!typecheckDecl(decl)) return false;
+        }
+        return true;
+    }
+
+    // DECL type checking rules
+    private boolean typecheckDecl(SynNode decl) {
+        SynNode header = findFirstChildOfType(decl, "HEADER");
+        SynNode body = findFirstChildOfType(decl, "BODY");
+        
+        String oldScope = currentFunctionScope;
+        currentFunctionScope = findFirstChildOfType(header, "FNAME").getValue();
+        
+        boolean headerResult = typecheckHeader(header);
+        boolean bodyResult = false;
+        
+        if (headerResult) {
+            bodyResult = typecheckBody(body);
+        }
+        
+        // Exit function scope
+        symbolTable.exitScope();
+        
+        currentFunctionScope = oldScope;
+        return headerResult && bodyResult;
+    }
+
+    // Helper method for operation type checking
     private String getOperationType(SynNode op) {
         SynNode unop = findFirstChildOfType(op, "UNOP");
         if (unop != null) {
-            String opType = unop.getValue();
-            SynNode arg = findFirstChildOfType(op, "ARG");
-            String argType = getArgType(arg);
-
-            if (opType.equals("not")) {
-                return argType.equals("b") ? "b" : "u";
-            }
-            if (opType.equals("sqrt")) {
-                return argType.equals("n") ? "n" : "u";
-            }
+            String argType = typeof(findFirstChildOfType(op, "ARG"));
+            if (unop.getValue().equals("not")) return argType.equals("b") ? "b" : "u";
+            if (unop.getValue().equals("sqrt")) return argType.equals("n") ? "n" : "u";
+            return "u";
         }
 
         SynNode binop = findFirstChildOfType(op, "BINOP");
         if (binop != null) {
+            String arg1Type = typeof(findFirstChildOfType(op, "ARG1"));
+            String arg2Type = typeof(findFirstChildOfType(op, "ARG2"));
             String opType = binop.getValue();
-            List<SynNode> args = new ArrayList<>();
-            for (SynNode child : op.getChildren()) {
-                if (child.getType().equals("ARG")) {
-                    args.add(child);
-                }
+            
+            if (opType.equals("or") || opType.equals("and")) {
+                return (arg1Type.equals("b") && arg2Type.equals("b")) ? "b" : "u";
             }
-
-            if (args.size() != 2) return "u";
-
-            String type1 = getArgType(args.get(0));
-            String type2 = getArgType(args.get(1));
-
-            switch (opType) {
-                case "add":
-                case "sub":
-                case "mul":
-                case "div":
-                    return (type1.equals("n") && type2.equals("n")) ? "n" : "u";
-                case "and":
-                case "or":
-                    return (type1.equals("b") && type2.equals("b")) ? "b" : "u";
-                case "eq":
-                case "grt":
-                    return (type1.equals("n") && type2.equals("n")) ? "b" : "u";
+            if (opType.equals("eq") || opType.equals("grt")) {
+                return (arg1Type.equals("n") && arg2Type.equals("n")) ? "b" : "u";
+            }
+            if (opType.equals("add") || opType.equals("sub") || 
+                opType.equals("mul") || opType.equals("div")) {
+                return (arg1Type.equals("n") && arg2Type.equals("n")) ? "n" : "u";
             }
         }
-
         return "u";
     }
 
-    // Get type of an argument
-    private String getArgType(SynNode arg) {
-        if (arg == null) return "u";
-
-        SynNode atomic = findFirstChildOfType(arg, "ATOMIC");
-        if (atomic != null) {
-            return getAtomicType(atomic);
-        }
-
-        SynNode op = findFirstChildOfType(arg, "OP");
-        if (op != null) {
-            return getOperationType(op);
-        }
-
-        return "u";
-    }
-
-    // Type check return statements
-    private boolean typecheckReturn(SynNode returnNode) {
-        SynNode atomic = findFirstChildOfType(returnNode, "ATOMIC");
-        String atomicType = getAtomicType(atomic);
-        String functionType = symbolTable.getType(currentFunctionScope);
-        return atomicType.equals(functionType);
-    }
-
-    // Type check functions
-    private boolean typecheckFunctions(SynNode functions) {
-        if (functions == null || functions.getChildren().isEmpty()) {
-            return true;
-        }
-
-        boolean result = true;
-        for (SynNode child : functions.getChildren()) {
-            if (child.isFunctionDefinition()) {
-                result &= typecheckFunction(child);
-            }
-        }
-        return result;
-    }
-
-    // Type check individual function
-    private boolean typecheckFunction(SynNode function) {
-        if (!function.isFunctionDefinition()) return false;
-
-        SynNode header = findFirstChildOfType(function, "HEADER");
-        SynNode body = findFirstChildOfType(function, "BODY");
-
-        String prevScope = currentFunctionScope;
-        currentFunctionScope = findFirstChildOfType(header, "FNAME").getValue();
-
-        boolean result = typecheckHeader(header) && typecheckBody(body);
-
-        currentFunctionScope = prevScope;
-        return result;
-    }
-
-    // Type check function header
-    private boolean typecheckHeader(SynNode header) {
-        SynNode ftyp = findFirstChildOfType(header, "FTYP");
-        String funcType = getTypeFromVTYP(ftyp);
+    // private boolean verifyReturnStatements(SynNode body, String functionType) {
+    //     if (functionType.equals("v")) return true;  // Void functions don't need return
         
-        String funcName = findFirstChildOfType(header, "FNAME").getValue();
-        symbolTable.declareFunction(funcName, funcType, currentFunctionScope);
-
-        // Check parameters are all numeric
-        List<SynNode> params = new ArrayList<>();
-        for (SynNode child : header.getChildren()) {
-            if (child.getType().equals("VNAME")) {
-                params.add(child);
-                symbolTable.declareVariable(child.getValue(), "n", currentFunctionScope);
-            }
-        }
-
-        return params.size() == 3; // RecSPL requires exactly 3 parameters
-    }
-
-    // Type check function body
-    private boolean typecheckBody(SynNode body) {
-        return typecheckLocVars(findFirstChildOfType(body, "LOCVARS")) &&
-               typecheckAlgo(findFirstChildOfType(body, "ALGO")) &&
-               typecheckFunctions(findFirstChildOfType(body, "SUBFUNCS"));
-    }
-
-    // Type check local variables
-    private boolean typecheckLocVars(SynNode locVars) {
-        if (locVars == null) return true;
-
-        List<SynNode> types = new ArrayList<>();
-        List<SynNode> names = new ArrayList<>();
-
-        for (SynNode child : locVars.getChildren()) {
-            if (child.getType().equals("VTYP")) {
-                types.add(child);
-            } else if (child.getType().equals("VNAME")) {
-                names.add(child);
-            }
-        }
-
-        if (types.size() != 3 || names.size() != 3) return false;
-
-        for (int i = 0; i < 3; i++) {
-            String varType = getTypeFromVTYP(types.get(i));
-            String varName = names.get(i).getValue();
-            symbolTable.declareVariable(varName, varType, currentFunctionScope);
-        }
-
-        return true;
-    }
+    //     // Find ALGO node in body
+    //     SynNode algo = findFirstChildOfType(body, "ALGO");
+    //     if (algo == null) return false;
+        
+    //     // Check if any instruction contains a return
+    //     boolean hasReturn = false;
+    //     for (SynNode instruc : algo.getChildren()) {
+    //         hasReturn |= hasReturnStatement(instruc);
+    //     }
+        
+    //     return hasReturn;
+    // }
+    
+    // private boolean hasReturnStatement(SynNode node) {
+    //     if (node == null) return false;
+    //     if (node.getType().equals("RETURN")) return true;
+        
+    //     for (SynNode child : node.getChildren()) {
+    //         if (hasReturnStatement(child)) return true;
+    //     }
+    //     return false;
+    // }
 }
