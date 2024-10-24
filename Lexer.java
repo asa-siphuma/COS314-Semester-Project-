@@ -14,8 +14,8 @@ public class Lexer {
     // Regular expression patterns for validation
     private static final Pattern TEXT_PATTERN = Pattern.compile("[A-Z][a-z]{0,7}");
     private static final Pattern NUMBER_PATTERN = Pattern.compile(
-        "0|0\\.([0-9])*[1-9]|-0\\.([0-9])*[1-9]|[1-9]([0-9])*|" +
-        "-[1-9]([0-9])*|[1-9]([0-9])*\\.([0-9])*[1-9]|-[1-9]([0-9])*\\.([0-9])*[1-9]"
+        "0|0\\.([0-9])[1-9]|-0\\.([0-9])[1-9]|[1-9]([0-9])*|" +
+        "-[1-9]([0-9])|[1-9]([0-9])\\.([0-9])[1-9]|-[1-9]([0-9])\\.([0-9])*[1-9]"
     );
 
     public Lexer(String input, XMLWriter xmlWriter) {
@@ -63,26 +63,15 @@ public class Lexer {
                value.equals("add") || value.equals("sub") || value.equals("mul") || 
                value.equals("div") || value.equals("and") || value.equals("or") ||
                value.equals("not") || value.equals("eq") || value.equals("grt") || 
-               value.equals("=") || value.equals("< input") || value.equals("return");
+               value.equals("=") || value.equals("&lt; input") || value.equals("return");
     }
 
     private boolean isOperator(String opValue) {
-        switch (opValue) {
-            case "add":
-            case "sub":
-            case "mul":
-            case "div":
-            case "eq":
-            case "grt":
-            case "and":
-            case "or":
-            case "not":
-            case "sqrt":
-            case "=":
-                return true;
-            default:
-                return false;
-        }
+        return switch (opValue) {
+            case "add", "sub", "mul", "div", "eq", "grt", 
+                 "and", "or", "not", "sqrt", "=", "&lt; input" -> true;
+            default -> false;
+        };
     }
 
     private boolean isSymbol(char ch) {
@@ -94,37 +83,45 @@ public class Lexer {
         int startCol = column;
         StringBuilder sb = new StringBuilder();
         char current = peek();
-
+    
         // Handle single-character operators
         if (current == '=') {
             currentChar(); // Consume the '=' character
             return new Token(Token.TokenType.OPERATOR, "=", line, startCol);
         }
-
+    
+        // Handle '< input' special case
+        if (current == '<') {
+            currentChar(); // consume '<'
+            if (peek() == ' ') {
+                currentChar(); // consume space
+                String remaining = "input";
+                for (char c : remaining.toCharArray()) {
+                    if (peek() != c) {
+                        throw new LexerException("Invalid input operator", line, startCol);
+                    }
+                    currentChar();
+                }
+                return new Token(Token.TokenType.OPERATOR, "&lt; input", line, startCol);
+            }
+            throw new LexerException("Invalid operator", line, startCol);
+        }
+    
         // Handle multi-character operators
         while (Character.isLetter(peek())) {
             sb.append(currentChar());
         }
-
+    
         String opValue = sb.toString();
         if (isOperator(opValue)) {
             return new Token(Token.TokenType.OPERATOR, opValue, line, startCol);
         }
-
-        // Handle special case for input operator
-        if (opValue.equals("<") && peek() == ' ') {
-            currentChar(); // consume space
-            String remaining = "input";
-            for (char c : remaining.toCharArray()) {
-                if (peek() != c) {
-                    throw new LexerException("Invalid input operator", line, startCol);
-                }
-                currentChar();
-            }
-            return new Token(Token.TokenType.OPERATOR, "< input", line, startCol);
+    
+        if (!opValue.isEmpty()) {  // Only throw if we actually read something
+            throw new LexerException("Invalid operator: " + opValue, line, startCol);
         }
-
-        throw new LexerException("Invalid operator: " + opValue, line, startCol);
+        
+        throw new LexerException("Invalid operator", line, startCol);
     }
 
     // Updated readSymbol method
@@ -196,6 +193,16 @@ public class Lexer {
         return new Token(Token.TokenType.NUMBER, number, line, startCol);
     }
 
+    private boolean isValidIdentifierPart(String name) {
+        return name.matches("[a-z]([a-z0-9])*");
+    }
+    
+    // Helper method to print token information during debugging
+    private void debugToken(String tokenType, String value, int line, int column) {
+        System.out.println(String.format("Token: type=%s, value='%s', line=%d, column=%d",
+            tokenType, value, line, column));
+    }
+
     private Token readTextConstant() {
         int startCol = column;
         StringBuilder sb = new StringBuilder();
@@ -247,7 +254,9 @@ public class Lexer {
         }
         
         if (value.startsWith("V_")) {
-            if (!value.substring(2).matches("[a-z][a-z0-9]*")) {
+            // Check if the rest of the variable name follows the pattern: [a-z]([a-z]|[0-9])*
+            String varName = value.substring(2);
+            if (!varName.matches("[a-z]([a-z0-9])*")) {
                 throw new LexerException("Invalid variable name format: " + value, line, startCol);
             }
             xmlWriter.writeToken(tokenID++, "V", value, line, startCol);
@@ -255,7 +264,9 @@ public class Lexer {
         }
         
         if (value.startsWith("F_")) {
-            if (!value.substring(2).matches("[a-z][a-z0-9]*")) {
+            // Check if the rest of the function name follows the pattern: [a-z]([a-z]|[0-9])*
+            String funcName = value.substring(2);
+            if (!funcName.matches("[a-z]([a-z0-9])*")) {
                 throw new LexerException("Invalid function name format: " + value, line, startCol);
             }
             xmlWriter.writeToken(tokenID++, "F", value, line, startCol);
